@@ -356,6 +356,7 @@ end
 		var vertex2 = getVector(triangleOffset + 2*vectorSize);
 		var vertex3 = getVector(triangleOffset + 3*vectorSize);
 		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
+		// assume attribute is not used, as per http://en.wikipedia.org/wiki/STL_(file_format)
 		var triangle = {};
 		triangle.normal = norm;
 		triangle.vertex1 = vertex1;
