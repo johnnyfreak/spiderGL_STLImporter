@@ -77,6 +77,10 @@ CanvasHandler.prototype = {
 		this.model = null;
 		var that = this;
 		sglRequestBinary("models/tete_complete.stl", {
+		// sglRequestBinary("models/sampleBinary.stl", {
+		// sglRequestBinary("models/Sample.STL", {
+		// sglRequestBinary("models/sample1.stl", {
+		//sglRequestBinary("models/leonardo.stl", {
 			onSuccess : function (req) {
 				var data = req.buffer;
 				var modelDescriptor = parseSTL(data);
@@ -213,7 +217,52 @@ function parseSTL(d){
 }
 
 function parseSTL_Binary(data) { 
-	var triangles = parseBinaryAux(data);
+	var dataview = new DataView(data);
+	var triangles = [];
+	/*
+	UINT8[80] – Header
+	UINT32 – Number of triangles
+
+	foreach triangle
+	REAL32[3] – Normal vector
+	REAL32[3] – Vertex 1
+	REAL32[3] – Vertex 2
+	REAL32[3] – Vertex 3
+	UINT16 – Attribute byte count
+	end
+	*/
+
+	var headerSize = 80 * 1 ; // 80 x Uint8 
+	var header = new Uint8Array(data.slice(0,headerSize));
+	// check header?
+	var numberOfTriangles = dataview.getUint32(headerSize, true);
+	var bodyOffset = headerSize + 4 ; // 1 x Uint32
+	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
+	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
+	function getVector(offset)
+	{
+		var vect = {};
+		vect.x = dataview.getFloat32(offset + 0, true);
+		vect.y = dataview.getFloat32(offset + 4, true);
+		vect.z = dataview.getFloat32(offset + 8, true);
+		return vect;
+	}
+	for (var i=0; i<numberOfTriangles; i++)
+	{
+		var triangleOffset = bodyOffset + i*triangleSize;
+		var norm = getVector(triangleOffset);
+		var vertex1 = getVector(triangleOffset + vectorSize);
+		var vertex2 = getVector(triangleOffset + 2*vectorSize);
+		var vertex3 = getVector(triangleOffset + 3*vectorSize);
+		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
+		var triangle = {};
+		triangle.normal = norm;
+		triangle.vertex1 = vertex1;
+		triangle.vertex2 = vertex2;
+		triangle.vertex3 = vertex3;
+		triangle.attrib = attribute;
+		triangles.push(triangle);
+	}
 	var modelDescriptor = {
                      version: "0.0.1.0 EXP",
                      meta: {
@@ -250,24 +299,63 @@ function parseSTL_Binary(data) {
 	var vertexCount = faceCount * 3;
 	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(9 * vertexCount) };
 	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
-	for(var i = 0; i < vertexCount; i++)
+	var sum = {};
+	sum.x = 0.0;
+	sum.y = 0.0;
+	sum.z = 0.0;
+	var max = {};
+	max.x = 0.0;
+	max.y = 0.0;
+	max.z = 0.0;
+	for(var i = 0; i < faceCount; i++)
 	{
-		arrayBuffer[i*3]   = triangles[i].vertex1.x;
-		arrayBuffer[i*3+1] = triangles[i].vertex1.y;
-		arrayBuffer[i*3+2] = triangles[i].vertex1.z;
+		sum.x +=  triangles[i].vertex1.x; 
+		sum.y +=  triangles[i].vertex1.y;
+		sum.z +=  triangles[i].vertex1.z;
 
-		arrayBuffer[i*3+3] = triangles[i].vertex2.x;
-		arrayBuffer[i*3+4] = triangles[i].vertex2.y;
-		arrayBuffer[i*3+5] = triangles[i].vertex2.z;
+		sum.x +=  triangles[i].vertex2.x;
+		sum.y +=  triangles[i].vertex2.y;
+		sum.z +=  triangles[i].vertex2.z;
 
-		arrayBuffer[i*3+6] = triangles[i].vertex3.x;
-		arrayBuffer[i*3+7] = triangles[i].vertex3.y;
-		arrayBuffer[i*3+8] = triangles[i].vertex3.z;
+		sum.x +=  triangles[i].vertex3.x;
+		sum.y +=  triangles[i].vertex3.y;
+		sum.z +=  triangles[i].vertex3.z;
+
+		max.x = Math.max(Math.abs(triangles[i].vertex1.x), max.x);
+		max.x = Math.max(Math.abs(triangles[i].vertex2.x), max.x);
+		max.x = Math.max(Math.abs(triangles[i].vertex3.x), max.x);
+		max.y = Math.max(Math.abs(triangles[i].vertex1.y), max.y);
+		max.y = Math.max(Math.abs(triangles[i].vertex2.y), max.y);
+		max.y = Math.max(Math.abs(triangles[i].vertex3.y), max.y);
+		max.z = Math.max(Math.abs(triangles[i].vertex1.z), max.z);
+		max.z = Math.max(Math.abs(triangles[i].vertex2.z), max.z);
+		max.z = Math.max(Math.abs(triangles[i].vertex3.z), max.z);
 	}
 
-	modelDescriptor.data.indexBuffers["ib0"] = { typedArray: new Uint16Array(3 * facesCount) };
+	var avgx = sum.x/(faceCount*3);
+	var avgy = sum.y/(faceCount*3);
+	var avgz = sum.z/(faceCount*3);
+
+	var norm = 1.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
+
+	for(var i = 0; i < faceCount; i++)
+	{
+		arrayBuffer[i*9]   = (triangles[i].vertex1.x - avgx)*norm;
+		arrayBuffer[i*9+1] = (triangles[i].vertex1.y - avgy)*norm;
+		arrayBuffer[i*9+2] = (triangles[i].vertex1.z - avgz)*norm;
+
+		arrayBuffer[i*9+3] = (triangles[i].vertex2.x - avgx)*norm;
+		arrayBuffer[i*9+4] = (triangles[i].vertex2.y - avgy)*norm;
+		arrayBuffer[i*9+5] = (triangles[i].vertex2.z - avgz)*norm;
+
+		arrayBuffer[i*9+6] = (triangles[i].vertex3.x - avgx)*norm;
+		arrayBuffer[i*9+7] = (triangles[i].vertex3.y - avgy)*norm;
+		arrayBuffer[i*9+8] = (triangles[i].vertex3.z - avgz)*norm;
+	}
+
+	modelDescriptor.data.indexBuffers["ib0"] = { typedArray: new Uint16Array(3 * faceCount) };
 	var indexBuffer = modelDescriptor.data.indexBuffers["ib0"].typedArray;
-	for(var i = 0; i < 3* facesCount; i++) {
+	for(var i = 0; i < 3* faceCount; i++) {
 		indexBuffer[i] = i;
 	}
 
@@ -284,7 +372,7 @@ function parseSTL_Binary(data) {
 	modelDescriptor.access.primitiveStreams["ps0"] = { //see glDrawElements
 	        buffer: "ib0",
 	        mode: SpiderGL.Type.TRIANGLES,
-	        count: vertexCount,
+	        count: 3 * faceCount,
 	        type: SpiderGL.Type.UINT16,
 	        offset: 0
 	};
@@ -293,59 +381,9 @@ function parseSTL_Binary(data) {
 	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
 	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
 
-	modelDescriptor.parsingSuccess = obj.parsingSuccess;
+	modelDescriptor.parsingSuccess = true;
+	return modelDescriptor;
 
-}
-
-function parseBinaryAux(data){
-	var obj = {};
-	var dataview = new DataView(data);
-	var triangles = [];
-	/*
-UINT8[80] – Header
-UINT32 – Number of triangles
-
-foreach triangle
-REAL32[3] – Normal vector
-REAL32[3] – Vertex 1
-REAL32[3] – Vertex 2
-REAL32[3] – Vertex 3
-UINT16 – Attribute byte count
-end
-	*/
-
-	var headerSize = 80 * 1 ; // 80 x Uint8 
-	var header = new Uint8Array(data.slice(0,headerSize));
-	// check header?
-	var numberOfTriangles = dataview.getUint32(headerSize, true);
-	var bodyOffset = headerSize + 4 ; // 1 x Uint32
-	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
-	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
-	function getVector(offset)
-	{
-		var vect = {};
-		vect.x = dataview.getFloat32(offset + 0, true);
-		vect.y = dataview.getFloat32(offset + 4, true);
-		vect.z = dataview.getFloat32(offset + 8, true);
-		return vect;
-	}
-	for (var i=0; i<numberOfTriangles; i++)
-	{
-		var triangleOffset = bodyOffset + i*triangleSize;
-		var norm = getVector(triangleOffset);
-		var vertex1 = getVector(triangleOffset + vectorSize);
-		var vertex2 = getVector(triangleOffset + 2*vectorSize);
-		var vertex3 = getVector(triangleOffset + 3*vectorSize);
-		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
-		var triangle = {};
-		triangle.normal = norm;
-		triangle.vertex1 = vertex1;
-		triangle.vertex2 = vertex2;
-		triangle.vertex3 = vertex3;
-		triangle.attrib = attribute;
-		triangles.push(triangle);
-	}
-	return triangles;
 }
 
 function parseSTL_ASCII(data){
