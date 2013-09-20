@@ -1,114 +1,22 @@
-<!DOCTYPE html> 
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<script type="text/javascript" src="spidergl.js"></script>
-<script id="LIGHT_PASS_FRAGMENT_SHADER" type="x-shader/x-fragment">
-#ifdef GL_ES
-precision highp float;
-#endif
-
-uniform sampler2D u_shadowMap;
-uniform vec3 u_worldLightDir;
-uniform vec3 u_albedo;
-varying vec3 v_normal;
-varying vec4 v_shadowCoord;
-
-float unpack_depth(const in vec4 rgba_depth)
-{
-	const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-	float depth = dot(rgba_depth, bit_shift);
-	return depth;
-}
-
-void main(void)
-{
-	vec3 shadow_coord = v_shadowCoord.xyz / v_shadowCoord.w;
-	vec4 rgba_depth   = texture2D(u_shadowMap, shadow_coord.xy);
-	float depth       = unpack_depth(rgba_depth);
-	float visibility  = ((depth - shadow_coord.z) > -0.01) ? (1.0) : (0.5);
-
-	vec3 normal    = normalize(v_normal);
-	float lambert  = dot(normal, -u_worldLightDir);
-	lambert        = max(lambert, 0.0);
-	float diffuse  = lambert * visibility;
-	diffuse        = max(diffuse, 0.1);
-
-	vec3 color     = vec3(diffuse * u_albedo);
-	gl_FragData[0] = vec4(color, 1.0);
-}
-</script>
-<script id="LIGHT_PASS_VERTEX_SHADER" type="x-shader/x-vertex">
-#ifdef GL_ES
-precision highp float;
-#endif
-
-uniform   mat4 u_mvp;
-uniform   mat4 u_shadowMatrix;
-uniform   mat3 u_worldNormalMatrix;
-attribute vec4 a_position;
-attribute vec3 a_normal;
-varying   vec3 v_normal;
-varying   vec4 v_shadowCoord;
-void main(void)
-{
-	v_shadowCoord = u_shadowMatrix * a_position;
-	v_normal      = u_worldNormalMatrix * a_normal;
-	gl_Position   = u_mvp * a_position;
-}
-</script>
-<script id="SIMPLE_VERTEX_SHADER" type="text/x-vertex">
-#ifdef GL_ES
-precision highp float;
-#endif
-
-uniform   mat4 u_mvp;
-
-attribute vec3 a_position;
-attribute vec3 a_color;
-
-varying   vec3 v_color;
-
-void main(void)
-{
-	v_color    = a_color;
-	gl_Position = u_mvp * vec4(a_position, 1.0);
-}
-</script>
-<script id="SIMPLE_FRAGMENT_SHADER" type="text/x-fragment">
-#ifdef GL_ES
-precision highp float;
-#endif
-
-varying vec3 v_color;
-
-void main(void)
-{
-	gl_FragData[0] = vec4(v_color, 1.0);
-}
-</script>
-
-<script type="text/javascript" src="importer.js"></script>
-  
-
-<head>
-<body>
- <h1>STL Importer - Simone Zenzaro</h2>
- <canvas id="importer_canvas" width="320" height="240" contenteditable="true"></canvas>
-	<input type="file" id="files" name="files[]" multiple />
-	<p id="list"></p>
-	<script type="text/javascript">
-	fileHandler();
-	</script>
-
- <h2>Description</h2>
- <p>descrizione TODO</p>
-
-
- <h2>Log</h2>
- <textarea id="LOG" style="width:400px; height:200px;">
-	STL Importer - Simone Zenzaro
- </textarea>
+<title>SpiderGL Ply</title>
+<script type="text/javascript" src="./spidergl.js"></script>
+<script type="text/javascript" src="./parsePLY.js"></script>
+<script type="text/javascript" src="./importPLY.js"></script>
+<script type="text/javascript" src="./importer.js"></script>
+</head>
+<body style="background-color:#aaa;">
+	<center>
+		<h2><font color="#880000">SpiderGL Ply</font></h2>
+		<br/>
+		<canvas id="draw-canvas" width="512" height="512" style="border:2px solid black;"></canvas>
+		<br/>
+		<div id="fps-div">FPS : 0</div>
+		<br/>
+		<textarea id="log-area" rows="10" cols="80"></textarea>
+		<br/>
+	</center>
 </body>
 </html>
 
