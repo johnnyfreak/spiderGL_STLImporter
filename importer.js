@@ -319,6 +319,7 @@ function parseSTL_Binary(data) {
 	var obj = {};
 	obj.parsingSucces = true;
 	var dataview = new DataView(data);
+	var triangles = [];
 	/*
 UINT8[80] – Header
 UINT32 – Number of triangles
@@ -355,8 +356,15 @@ end
 		var vertex2 = getVector(triangleOffset + 2*vectorSize);
 		var vertex3 = getVector(triangleOffset + 3*vectorSize);
 		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
+		var triangle = {};
+		triangle.normal = norm;
+		triangle.vertex1 = vertex1;
+		triangle.vertex2 = vertex2;
+		triangle.vertex3 = vertex3;
+		triangle.attrib = attribute;
+		triangles.push(triangle);
 	}
-	return obj;
+	return triangles;
 }
 	
 function fileHandler()
