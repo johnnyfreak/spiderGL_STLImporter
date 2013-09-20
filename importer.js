@@ -218,7 +218,7 @@ function handleFileSelect(evt){
 			}
 
 			if(!parsingSuccess || !checkHeader){
-				obj = parseSTL_Binary(byteData);
+				obj = parseSTL_Binary(result);
 				parsingSuccess = obj.parsingSuccess;
 			}
 			
@@ -317,7 +317,45 @@ function parseSTL_ASCII(data){
 
 function parseSTL_Binary(data) { 
 	var obj = {};
-	obj.parsingSucces = false;
+	obj.parsingSucces = true;
+	var dataview = new DataView(data);
+	/*
+UINT8[80] – Header
+UINT32 – Number of triangles
+
+foreach triangle
+REAL32[3] – Normal vector
+REAL32[3] – Vertex 1
+REAL32[3] – Vertex 2
+REAL32[3] – Vertex 3
+UINT16 – Attribute byte count
+end
+	*/
+
+	var headerSize = 80 * 1 ; // 80 x Uint8 
+	var header = new Uint8Array(data.slice(0,headerSize));
+	// check header?
+	var numberOfTriangles = dataview.getUint32(headerSize, true);
+	var bodyOffset = headerSize + 4 ; // 1 x Uint32
+	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
+	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
+	function getVector(offset)
+	{
+		var vect = {};
+		vect.x = dataview.getFloat32(offset + 0, true);
+		vect.y = dataview.getFloat32(offset + 4, true);
+		vect.z = dataview.getFloat32(offset + 8, true);
+		return vect;
+	}
+	for (var i=0; i<numberOfTriangles; i++)
+	{
+		var triangleOffset = bodyOffset + i*triangleSize;
+		var norm = getVector(triangleOffset);
+		var vertex1 = getVector(triangleOffset + vectorSize);
+		var vertex2 = getVector(triangleOffset + 2*vectorSize);
+		var vertex3 = getVector(triangleOffset + 3*vectorSize);
+		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
+	}
 	return obj;
 }
 	
