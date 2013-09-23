@@ -77,10 +77,10 @@ CanvasHandler.prototype = {
 		this.model = null;
 		var that = this;
 		// sglRequestBinary("models/tire_v.stl", {
-		// sglRequestBinary("models/ship.stl", {
+		sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
-		sglRequestBinary("models/tete_complete.stl", {
+		// sglRequestBinary("models/tete_complete.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
@@ -243,6 +243,7 @@ function parseSTL_Binary(data) {
 	var bodyOffset = headerSize + 4 ; // 1 x Uint32
 	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
 	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
+	var currOffset = bodyOffset;
 	function getVector(offset)
 	{
 		var vect = {};
@@ -253,7 +254,7 @@ function parseSTL_Binary(data) {
 	}
 	for (var i=0; i<numberOfTriangles; i++)
 	{
-		var triangleOffset = bodyOffset + i*triangleSize;
+		var triangleOffset = currOffset;
 		var norm = getVector(triangleOffset);
 		var vertex1 = getVector(triangleOffset + vectorSize);
 		var vertex2 = getVector(triangleOffset + 2*vectorSize);
@@ -265,8 +266,13 @@ function parseSTL_Binary(data) {
 		triangle.vertex2 = vertex2;
 		triangle.vertex3 = vertex3;
 		triangle.attrib = attribute;
+		if (attribute > 0)
+			log("triangle " + i + " has attribute size =" + attribute);
+
 		triangles.push(triangle);
+		currOffset += triangleSize + attribute;
 	}
+	log("imported " + numberOfTriangles + " triangles");
 	var modelDescriptor = {
                      version: "0.0.1.0 EXP",
                      meta: {
