@@ -76,8 +76,8 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		// sglRequestBinary("models/tire_v.stl", {
-		sglRequestBinary("models/ship.stl", {
+		 sglRequestBinary("models/tire_v.stl", {
+		// sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
 		// sglRequestBinary("models/tete_complete.stl", {
@@ -85,6 +85,7 @@ CanvasHandler.prototype = {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
 		// sglRequestBinary("models/leonardo.stl", {
+		// sglRequestBinary("models/cubo.stl", {
 			onSuccess : function (req) {
 				var data = req.buffer;
 				var modelDescriptor = parseSTL(data);
@@ -125,10 +126,10 @@ CanvasHandler.prototype = {
 		gl.viewport(0, 0, width, height);
 
 		xform.projection.loadIdentity();
-		xform.projection.perspective(sglDegToRad(50.0), width/height, 0.1, 10.0);
+		xform.projection.perspective(sglDegToRad(60.0), width/height, 0.1, 50.0);
 
 		xform.view.loadIdentity();
-		xform.view.lookAt([0.0, 0.0, 10.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+		xform.view.lookAt([0.0, 0.0, 20.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
 
 		xform.model.loadIdentity();
 		xform.model.rotate(sglDegToRad(this.angle), [0.0, 1.0, 0.0]);
@@ -220,6 +221,46 @@ function parseSTL(d){
 	return obj;
 }
 
+function centerAndNormalize(faceCount, triangles){
+	// center and normalyze
+	var sum = {};
+	sum.x = 0.0;
+	sum.y = 0.0;
+	sum.z = 0.0;
+	var max = {};
+	max.x = 0.0;
+	max.y = 0.0;
+	max.z = 0.0;
+	for(var i = 0; i < faceCount; i++)
+	{
+		sum.x +=  triangles[i].vertex1.x; 
+		sum.y +=  triangles[i].vertex1.y;
+		sum.z +=  triangles[i].vertex1.z;
+
+		sum.x +=  triangles[i].vertex2.x;
+		sum.y +=  triangles[i].vertex2.y;
+		sum.z +=  triangles[i].vertex2.z;
+
+		sum.x +=  triangles[i].vertex3.x;
+		sum.y +=  triangles[i].vertex3.y;
+		sum.z +=  triangles[i].vertex3.z;
+
+		max.x = Math.max(Math.abs(triangles[i].vertex1.x), Math.abs(triangles[i].vertex2.x), Math.abs(triangles[i].vertex3.x), max.x);
+		max.y = Math.max(Math.abs(triangles[i].vertex1.y), Math.abs(triangles[i].vertex2.y), Math.abs(triangles[i].vertex3.y), max.y);		
+		max.z = Math.max(Math.abs(triangles[i].vertex1.z), Math.abs(triangles[i].vertex2.z), Math.abs(triangles[i].vertex3.z), max.z);
+	}
+
+	var avgx = sum.x/(faceCount*3);
+	var avgy = sum.y/(faceCount*3);
+	var avgz = sum.z/(faceCount*3);
+
+	// var norm = 1.0;
+	var norm = 8.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
+
+	return { "avgx" : avgx, "avgy" : avgy, "avgz" : avgz, "norm" : norm, "max" : max };
+
+}
+
 function parseSTL_Binary(data) { 
 	var dataview = new DataView(data);
 	var triangles = [];
@@ -238,12 +279,10 @@ function parseSTL_Binary(data) {
 
 	var headerSize = 80 * 1 ; // 80 x Uint8 
 	var header = new Uint8Array(data.slice(0,headerSize));
-	// check header?
 	var numberOfTriangles = dataview.getUint32(headerSize, true);
 	var bodyOffset = headerSize + 4 ; // 1 x Uint32
 	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
 	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
-	var currOffset = bodyOffset;
 	function getVector(offset)
 	{
 		var vect = {};
@@ -254,7 +293,7 @@ function parseSTL_Binary(data) {
 	}
 	for (var i=0; i<numberOfTriangles; i++)
 	{
-		var triangleOffset = currOffset;
+		var triangleOffset = bodyOffset + i*triangleSize;
 		var norm = getVector(triangleOffset);
 		var vertex1 = getVector(triangleOffset + vectorSize);
 		var vertex2 = getVector(triangleOffset + 2*vectorSize);
@@ -266,13 +305,8 @@ function parseSTL_Binary(data) {
 		triangle.vertex2 = vertex2;
 		triangle.vertex3 = vertex3;
 		triangle.attrib = attribute;
-		if (attribute > 0)
-			log("triangle " + i + " has attribute size =" + attribute);
-
 		triangles.push(triangle);
-		currOffset += triangleSize + attribute;
 	}
-	log("imported " + numberOfTriangles + " triangles");
 	var modelDescriptor = {
                      version: "0.0.1.0 EXP",
                      meta: {
@@ -309,60 +343,29 @@ function parseSTL_Binary(data) {
 	var vertexCount = faceCount * 3;
 	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(9 * vertexCount) };
 	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
-	// center and normalyze
-	var sum = {};
-	sum.x = 0.0;
-	sum.y = 0.0;
-	sum.z = 0.0;
-	var max = {};
-	max.x = 0.0;
-	max.y = 0.0;
-	max.z = 0.0;
-	for(var i = 0; i < faceCount; i++)
-	{
-		sum.x +=  triangles[i].vertex1.x; 
-		sum.y +=  triangles[i].vertex1.y;
-		sum.z +=  triangles[i].vertex1.z;
+	var can = centerAndNormalize(faceCount, triangles);
 
-		sum.x +=  triangles[i].vertex2.x;
-		sum.y +=  triangles[i].vertex2.y;
-		sum.z +=  triangles[i].vertex2.z;
-
-		sum.x +=  triangles[i].vertex3.x;
-		sum.y +=  triangles[i].vertex3.y;
-		sum.z +=  triangles[i].vertex3.z;
-
-		max.x = Math.max(Math.abs(triangles[i].vertex1.x), max.x);
-		max.x = Math.max(Math.abs(triangles[i].vertex2.x), max.x);
-		max.x = Math.max(Math.abs(triangles[i].vertex3.x), max.x);
-		max.y = Math.max(Math.abs(triangles[i].vertex1.y), max.y);
-		max.y = Math.max(Math.abs(triangles[i].vertex2.y), max.y);
-		max.y = Math.max(Math.abs(triangles[i].vertex3.y), max.y);
-		max.z = Math.max(Math.abs(triangles[i].vertex1.z), max.z);
-		max.z = Math.max(Math.abs(triangles[i].vertex2.z), max.z);
-		max.z = Math.max(Math.abs(triangles[i].vertex3.z), max.z);
-	}
-
-	var avgx = sum.x/(faceCount*3);
-	var avgy = sum.y/(faceCount*3);
-	var avgz = sum.z/(faceCount*3);
-
+	var avgx = can.avgx;
+	var avgy = can.avgy;
+	var avgz = can.avgz;
+	var max = can.max;
 	// var norm = 1.0;
-	var norm = 4.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
+	var norm = can.norm;
+
 
 	for(var i = 0; i < faceCount; i++)
 	{
-		arrayBuffer[i*9]   = (triangles[i].vertex1.x - avgx)*norm;
-		arrayBuffer[i*9+1] = (triangles[i].vertex1.y - avgy)*norm;
-		arrayBuffer[i*9+2] = (triangles[i].vertex1.z - avgz)*norm;
+		arrayBuffer[i*9]   = (triangles[i].vertex1.x  - avgx)*norm;
+		arrayBuffer[i*9+1] = (triangles[i].vertex1.y  - avgy)*norm;
+		arrayBuffer[i*9+2] = (triangles[i].vertex1.z  - avgz)*norm;
 
-		arrayBuffer[i*9+3] = (triangles[i].vertex2.x - avgx)*norm;
-		arrayBuffer[i*9+4] = (triangles[i].vertex2.y - avgy)*norm;
-		arrayBuffer[i*9+5] = (triangles[i].vertex2.z - avgz)*norm;
+		arrayBuffer[i*9+3] = (triangles[i].vertex2.x  - avgx)*norm;
+		arrayBuffer[i*9+4] = (triangles[i].vertex2.y  - avgy)*norm;
+		arrayBuffer[i*9+5] = (triangles[i].vertex2.z  - avgz)*norm;
 
-		arrayBuffer[i*9+6] = (triangles[i].vertex3.x - avgx)*norm;
-		arrayBuffer[i*9+7] = (triangles[i].vertex3.y - avgy)*norm;
-		arrayBuffer[i*9+8] = (triangles[i].vertex3.z - avgz)*norm;
+		arrayBuffer[i*9+6] = (triangles[i].vertex3.x  - avgx)*norm;
+		arrayBuffer[i*9+7] = (triangles[i].vertex3.y  - avgy)*norm;
+		arrayBuffer[i*9+8] = (triangles[i].vertex3.z  - avgz)*norm;
 	}
 
 	modelDescriptor.data.indexBuffers["ib0"] = { typedArray: new Uint16Array(3 * faceCount) };
@@ -380,7 +383,7 @@ function parseSTL_Binary(data) {
 	        offset: 0,
 	        normalized: true 
 	};
-	
+		
 	modelDescriptor.access.primitiveStreams["ps0"] = { //see glDrawElements
 	        buffer: "ib0",
 	        mode: SpiderGL.Type.TRIANGLES,
@@ -389,7 +392,37 @@ function parseSTL_Binary(data) {
 	        offset: 0
 	};
 	
-	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"] }, primitiveStreams: { FILL: ["ps0"] }};
+	//normals
+	modelDescriptor.data.vertexBuffers["normalVBuffer"] = { typedArray: new Float32Array(vertexCount * 3) };
+	var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"].typedArray;
+
+	for(var i = 0; i < faceCount; i++) {
+		 normalBuffer[i*3 + 0] = triangles[i].normal.x;
+		 normalBuffer[i*3 + 1] = triangles[i].normal.y;
+		 normalBuffer[i*3 + 2] = triangles[i].normal.z;
+		 
+		 normalBuffer[i*3 + 3] = triangles[i].normal.x;
+		 normalBuffer[i*3 + 4] = triangles[i].normal.y;
+		 normalBuffer[i*3 + 5] = triangles[i].normal.z;
+		 
+		 normalBuffer[i*3 + 6] = triangles[i].normal.x;
+		 normalBuffer[i*3 + 7] = triangles[i].normal.y;
+		 normalBuffer[i*3 + 8] = triangles[i].normal.z;
+	}
+	
+	modelDescriptor.access.vertexStreams["normals"] = {
+		buffer: "normalVBuffer",
+	        size: 3,
+	        type: SpiderGL.Type.FLOAT32,
+	        stride: 12,
+	        offset: 0,
+	        normalized: true 
+
+	}
+	//
+
+
+	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"], NORMAL: ["normals"] }, primitiveStreams: { FILL: ["ps0"] }};
 	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
 	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
 
@@ -539,7 +572,30 @@ function parseSTL_ASCII(data){
 	        offset: 0
 	};
 	
-	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"] }, primitiveStreams: { FILL: ["ps0"] }};
+
+	//normals
+	modelDescriptor.data.vertexBuffers["normalVBuffer"] = { typedArray: new Float32Array(vertexCount * 3) };
+	var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"].typedArray;
+
+	for(var i = 0; i < facesCount; i++) {
+        	for (var j = 0; j < 3; j++) {
+         		for (var k = 0; k < 3; k++)
+          			normalBuffer[3*(3*i+j)+k] = normals[3*i+k];
+         	}
+	}
+	
+	modelDescriptor.access.vertexStreams["normals"] = {
+		buffer: "normalVBuffer",
+	        size: 3,
+	        type: SpiderGL.Type.FLOAT32,
+	        stride: 12,
+	        offset: 0,
+	        normalized: true 
+
+	}
+	//
+
+	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"], NORMAL: ["normals"] }, primitiveStreams: { FILL: ["ps0"] }};
 	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
 	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
 
