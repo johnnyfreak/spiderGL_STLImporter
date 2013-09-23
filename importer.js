@@ -76,11 +76,11 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		 sglRequestBinary("models/tire_v.stl", {
+		 // sglRequestBinary("models/tire_v.stl", {
 		// sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
-		// sglRequestBinary("models/tete_complete.stl", {
+		sglRequestBinary("models/tete_complete.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
@@ -291,6 +291,7 @@ function parseSTL_Binary(data) {
 		vect.z = dataview.getFloat32(offset + 8, true);
 		return vect;
 	}
+
 	for (var i=0; i<numberOfTriangles; i++)
 	{
 		var triangleOffset = bodyOffset + i*triangleSize;
@@ -397,17 +398,17 @@ function parseSTL_Binary(data) {
 	var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"].typedArray;
 
 	for(var i = 0; i < faceCount; i++) {
-		 normalBuffer[i*3 + 0] = triangles[i].normal.x;
-		 normalBuffer[i*3 + 1] = triangles[i].normal.y;
-		 normalBuffer[i*3 + 2] = triangles[i].normal.z;
+		 normalBuffer[i*9 + 0] = triangles[i].normal.x;
+		 normalBuffer[i*9 + 1] = triangles[i].normal.y;
+		 normalBuffer[i*9 + 2] = triangles[i].normal.z;
 		 
-		 normalBuffer[i*3 + 3] = triangles[i].normal.x;
-		 normalBuffer[i*3 + 4] = triangles[i].normal.y;
-		 normalBuffer[i*3 + 5] = triangles[i].normal.z;
+		 normalBuffer[i*9 + 3] = triangles[i].normal.x;
+		 normalBuffer[i*9 + 4] = triangles[i].normal.y;
+		 normalBuffer[i*9 + 5] = triangles[i].normal.z;
 		 
-		 normalBuffer[i*3 + 6] = triangles[i].normal.x;
-		 normalBuffer[i*3 + 7] = triangles[i].normal.y;
-		 normalBuffer[i*3 + 8] = triangles[i].normal.z;
+		 normalBuffer[i*9 + 6] = triangles[i].normal.x;
+		 normalBuffer[i*9 + 7] = triangles[i].normal.y;
+		 normalBuffer[i*9 + 8] = triangles[i].normal.z;
 	}
 	
 	modelDescriptor.access.vertexStreams["normals"] = {
