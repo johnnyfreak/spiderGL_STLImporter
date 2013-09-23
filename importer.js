@@ -64,23 +64,27 @@ CanvasHandler.prototype = {
 			",
 			vertexStreams : {
 				"aNormal" : [ 0.0, 0.0, 1.0, 0.0 ],
-				"aColor"  : [ 0.4, 0.4, 0.8, 1.0 ]
+				"aColor"  : [ 0.6, 0.6, 0.6, 1.0 ]
 			},
 			globals : {
 				"uWorldViewProjectionMatrix" : { semantic : "WORLD_VIEW_PROJECTION_MATRIX", value : SglMat4.identity() },
 				"uViewSpaceNormalMatrix"     : { semantic : "VIEW_SPACE_NORMAL_MATRIX",     value : SglMat3.identity() },
-				"uViewSpaceLightDirection"   : { semantic : "VIEW_SPACE_LIGHT_DIRECTION",   value : [ 0.0, 0.0, -1.0 ] }
+				"uViewSpaceLightDirection"   : { semantic : "VIEW_SPACE_LIGHT_DIRECTION",   value : [ 0.1, 0.1, -1.0 ] }
 			}
 		});
 		log(this.technique.program.log);
 
 		this.model = null;
 		var that = this;
+		// sglRequestBinary("models/tire_v.stl", {
+		// sglRequestBinary("models/ship.stl", {
+		// sglRequestBinary("models/knot.stl", {
+		// sglRequestBinary("models/porsche.stl", {
 		sglRequestBinary("models/tete_complete.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
-		//sglRequestBinary("models/leonardo.stl", {
+		// sglRequestBinary("models/leonardo.stl", {
 			onSuccess : function (req) {
 				var data = req.buffer;
 				var modelDescriptor = parseSTL(data);
@@ -299,6 +303,7 @@ function parseSTL_Binary(data) {
 	var vertexCount = faceCount * 3;
 	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(9 * vertexCount) };
 	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
+	// center and normalyze
 	var sum = {};
 	sum.x = 0.0;
 	sum.y = 0.0;
@@ -336,7 +341,8 @@ function parseSTL_Binary(data) {
 	var avgy = sum.y/(faceCount*3);
 	var avgz = sum.z/(faceCount*3);
 
-	var norm = 1.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
+	// var norm = 1.0;
+	var norm = 4.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
 
 	for(var i = 0; i < faceCount; i++)
 	{
