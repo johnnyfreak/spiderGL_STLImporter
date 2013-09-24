@@ -76,12 +76,13 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		 sglRequestBinary("models/tire_v.stl", {
+		//sglRequestBinary("models/tire_v.stl", {
 		// sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
-		// sglRequestBinary("models/tete_complete2.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
+		// sglRequestBinary("models/tete_complete.stl", {
+		 sglRequestBinary("models/tete_complete2.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
 		// sglRequestBinary("models/leonardo.stl", {
@@ -154,13 +155,8 @@ CanvasHandler.prototype = {
 	}
 };
 
-function parseSTL(d){
-	var header =  String.fromCharCode.apply(null, new Uint8Array(d.slice(0,80)));
-	var parsingSuccess = false;
-	var checkHeader = header.startsWith("solid");			
-	var byteData = new Uint8Array(d);			
-	var obj ={
-                     version: "0.0.1.0 EXP",
+function getEmptyDescriptor() { 
+	return { version: "0.0.1.0 EXP",
                      meta: {
                      },
                      data: {
@@ -190,10 +186,16 @@ function parseSTL(d){
                      extra: {
                      }
                  };
+}
 
-
-	log("header: " +header);
-
+function parseSTL(d){
+	var header =  String.fromCharCode.apply(null, new Uint8Array(d.slice(0,80)));
+	var checkHeader = header.startsWith("solid");			
+	var byteData = new Uint8Array(d);
+	var obj = null;
+	var parsingSuccess = false;
+	
+	//check data header parse according to file type
 	if(checkHeader){
 		var data = "";
 		var start = 0;
@@ -211,335 +213,27 @@ function parseSTL(d){
 		obj = parseSTL_Binary(d);
 		parsingSuccess = obj.parsingSuccess;
 	}
-			
+		
+
+	var descriptor = getEmptyDescriptor();	
 	if(parsingSuccess) {
 		log("file parsed");
+		//create model descriptor
+		obj = normalizeData(obj, 4.0);
+		descriptor = getDescriptor(obj);
+
 	}else{
 		log("failed to parse");
 		
 	}
-	return obj;
+	
+	return descriptor;		
 }
 
-function centerAndNormalize(faceCount, triangles){
-	// center and normalyze
-	var sum = {};
-	sum.x = 0.0;
-	sum.y = 0.0;
-	sum.z = 0.0;
-	var max = {};
-	max.x = 0.0;
-	max.y = 0.0;
-	max.z = 0.0;
-	for(var i = 0; i < faceCount; i++)
-	{
-		sum.x +=  triangles[i].vertex1.x; 
-		sum.y +=  triangles[i].vertex1.y;
-		sum.z +=  triangles[i].vertex1.z;
+function normalizeData(info, scale){
+	var positions = info.positions;
+	var normals = info.normals;
 
-		sum.x +=  triangles[i].vertex2.x;
-		sum.y +=  triangles[i].vertex2.y;
-		sum.z +=  triangles[i].vertex2.z;
-
-		sum.x +=  triangles[i].vertex3.x;
-		sum.y +=  triangles[i].vertex3.y;
-		sum.z +=  triangles[i].vertex3.z;
-
-		max.x = Math.max(Math.abs(triangles[i].vertex1.x), Math.abs(triangles[i].vertex2.x), Math.abs(triangles[i].vertex3.x), max.x);
-		max.y = Math.max(Math.abs(triangles[i].vertex1.y), Math.abs(triangles[i].vertex2.y), Math.abs(triangles[i].vertex3.y), max.y);		
-		max.z = Math.max(Math.abs(triangles[i].vertex1.z), Math.abs(triangles[i].vertex2.z), Math.abs(triangles[i].vertex3.z), max.z);
-	}
-
-	var avgx = sum.x/(faceCount*3);
-	var avgy = sum.y/(faceCount*3);
-	var avgz = sum.z/(faceCount*3);
-
-	// var norm = 1.0;
-	var norm = 8.0/Math.sqrt(max.x* max.x + max.y *max.y, max.z *max.z);
-
-	return { "avgx" : avgx, "avgy" : avgy, "avgz" : avgz, "norm" : norm, "max" : max };
-
-}
-
-function parseSTL_Binary(data) { 
-	var dataview = new DataView(data);
-	var triangles = [];
-	/*
-	UINT8[80] – Header
-	UINT32 – Number of triangles
-
-	foreach triangle
-	REAL32[3] – Normal vector
-	REAL32[3] – Vertex 1
-	REAL32[3] – Vertex 2
-	REAL32[3] – Vertex 3
-	UINT16 – Attribute byte count
-	end
-	*/
-
-	var headerSize = 80 * 1 ; // 80 x Uint8 
-	var header = new Uint8Array(data.slice(0,headerSize));
-	var numberOfTriangles = dataview.getUint32(headerSize, true);
-	var bodyOffset = headerSize + 4 ; // 1 x Uint32
-	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
-	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
-	function getVector(offset)
-	{
-		var vect = {};
-		vect.x = dataview.getFloat32(offset + 0, true);
-		vect.y = dataview.getFloat32(offset + 4, true);
-		vect.z = dataview.getFloat32(offset + 8, true);
-		return vect;
-	}
-
-	var triangleOffset = bodyOffset;
-	for (var i=0; i<numberOfTriangles; i++)
-	{
-		var norm = getVector(triangleOffset);
-		var vertex1 = getVector(triangleOffset + vectorSize);
-		var vertex2 = getVector(triangleOffset + 2*vectorSize);
-		var vertex3 = getVector(triangleOffset + 3*vectorSize);
-		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
-		var triangle = {};
-		triangle.normal = norm;
-		triangle.vertex1 = vertex1;
-		triangle.vertex2 = vertex2;
-		triangle.vertex3 = vertex3;
-		triangle.attrib = attribute;
-		triangles.push(triangle);
-		triangleOffset += triangleSize + attribute;
-	}
-	var modelDescriptor = {
-                     version: "0.0.1.0 EXP",
-                     meta: {
-                     },
-                     data: {
-                         vertexBuffers: {
-                         },
-                         indexBuffers: {
-                         }
-                     },
-                     access: {
-                         vertexStreams: {
-                         },
-                         primitiveStreams: {
-                         }
-                     },
-                     semantic: {
-                         bindings: {
-                         },
-                         chunks: {
-                         }
-                     },
-                     logic: {
-                         parts: {
-                         }
-                     },
-                     control: {
-                     },
-                     extra: {
-                     }
-                 };
-
-	var faceCount = triangles.length;
-	var vertexCount = faceCount * 3;
-	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(9 * vertexCount) };
-	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
-	var can = centerAndNormalize(faceCount, triangles);
-
-	var avgx = can.avgx;
-	var avgy = can.avgy;
-	var avgz = can.avgz;
-	var max = can.max;
-	// var norm = 1.0;
-	var norm = can.norm;
-
-
-	for(var i = 0; i < faceCount; i++)
-	{
-		arrayBuffer[i*9]   = (triangles[i].vertex1.x  - avgx)*norm;
-		arrayBuffer[i*9+1] = (triangles[i].vertex1.y  - avgy)*norm;
-		arrayBuffer[i*9+2] = (triangles[i].vertex1.z  - avgz)*norm;
-
-		arrayBuffer[i*9+3] = (triangles[i].vertex2.x  - avgx)*norm;
-		arrayBuffer[i*9+4] = (triangles[i].vertex2.y  - avgy)*norm;
-		arrayBuffer[i*9+5] = (triangles[i].vertex2.z  - avgz)*norm;
-
-		arrayBuffer[i*9+6] = (triangles[i].vertex3.x  - avgx)*norm;
-		arrayBuffer[i*9+7] = (triangles[i].vertex3.y  - avgy)*norm;
-		arrayBuffer[i*9+8] = (triangles[i].vertex3.z  - avgz)*norm;
-	}
-
-	modelDescriptor.data.indexBuffers["ib0"] = { typedArray: new Uint16Array(3 * faceCount) };
-	var indexBuffer = modelDescriptor.data.indexBuffers["ib0"].typedArray;
-	for(var i = 0; i < 3* faceCount; i++) {
-		indexBuffer[i] = i;
-	}
-
-
-	modelDescriptor.access.vertexStreams["vertices0"] = { //see glVertexAttribPointer
-	        buffer: "vb0",
-	        size: 3,
-	        type: SpiderGL.Type.FLOAT32,
-	        stride: 12,
-	        offset: 0,
-	        normalized: true 
-	};
-		
-	modelDescriptor.access.primitiveStreams["ps0"] = { //see glDrawElements
-	        buffer: "ib0",
-	        mode: SpiderGL.Type.TRIANGLES,
-	        count: 3 * faceCount,
-	        type: SpiderGL.Type.UINT16,
-	        offset: 0
-	};
-	
-	//normals
-	modelDescriptor.data.vertexBuffers["normalVBuffer"] = { typedArray: new Float32Array(vertexCount * 3) };
-	var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"].typedArray;
-
-	for(var i = 0; i < faceCount; i++) {
-		 normalBuffer[i*9 + 0] = triangles[i].normal.x;
-		 normalBuffer[i*9 + 1] = triangles[i].normal.y;
-		 normalBuffer[i*9 + 2] = triangles[i].normal.z;
-		 
-		 normalBuffer[i*9 + 3] = triangles[i].normal.x;
-		 normalBuffer[i*9 + 4] = triangles[i].normal.y;
-		 normalBuffer[i*9 + 5] = triangles[i].normal.z;
-		 
-		 normalBuffer[i*9 + 6] = triangles[i].normal.x;
-		 normalBuffer[i*9 + 7] = triangles[i].normal.y;
-		 normalBuffer[i*9 + 8] = triangles[i].normal.z;
-	}
-	
-	modelDescriptor.access.vertexStreams["normals"] = {
-		buffer: "normalVBuffer",
-	        size: 3,
-	        type: SpiderGL.Type.FLOAT32,
-	        stride: 12,
-	        offset: 0,
-	        normalized: true 
-
-	}
-	//
-
-
-	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"], NORMAL: ["normals"] }, primitiveStreams: { FILL: ["ps0"] }};
-	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
-	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
-
-	modelDescriptor.parsingSuccess = true;
-	return modelDescriptor;
-
-}
-
-function parseSTL_ASCII(data){
-	var lines = data.split('\n');
-	for(var j=0; j<lines.length; j++){ 
-		lines[j] = lines[j].trim(); 
-		lines[j] = lines[j].replace(/ +(?= )/g,'');
-	}
-
-	var modelDescriptor = {
-                     version: "0.0.1.0 EXP",
-                     meta: {
-                     },
-                     data: {
-                         vertexBuffers: {
-                         },
-                         indexBuffers: {
-                         }
-                     },
-                     access: {
-                         vertexStreams: {
-                         },
-                         primitiveStreams: {
-                         }
-                     },
-                     semantic: {
-                         bindings: {
-                         },
-                         chunks: {
-                         }
-                     },
-                     logic: {
-                         parts: {
-                         }
-                     },
-                     control: {
-                     },
-                     extra: {
-                     }
-                 };
-
-	var obj = {};
-	obj.parsingSuccess = false;
-	var positions = [];
-	var normals = [];
-	
-	var i=1;
-	while(i < lines.length)
-	{
-		if(lines[i].startsWith("facet normal")){
-			var helper = lines[i].split(" ");
-			normals.push(parseFloat(helper[2]));
-			normals.push(parseFloat(helper[3]));
-			normals.push(parseFloat(helper[4]));
-			i++;
-			if(lines[i] == "outer loop")
-			{
-								
-				var j = 3;
-				var vertexok = true;
-				while(j > 0)
-				{
-					i++;
-					helper = lines[i].split(" ");
-					if(helper[0] != "vertex"){
-						vertexok = false;
-						break;
-					}
-					positions.push(parseFloat(helper[1]));
-					positions.push(parseFloat(helper[2]));
-					positions.push(parseFloat(helper[3]));
-					j--;
-				}
-
-				if(!vertexok){
-					log("parse error, bad vertex on line: " + i);
-					break;
-				}
-
-				i++;
-				if(!lines[i].startsWith("endloop")){
-					log("parse error, bad loop on line: " + i);
-					break;
-				}
-				i++;
-				if(!lines[i].startsWith("endfacet")){
-					log("parse error, bad facet on line: " + i);
-					break;
-				} 
-				i++
-			}else{
-				log("parse error, bad facet on line" + i);
-				break;
-			}
-		}else{
-			if(lines[i].startsWith("endsolid")){
-				obj.parsingSuccess = true;
-				break;
-			}
-
-			log("parse error, bad facet on line " + i);
-			break;
-		}
-	}
-	log("Parsing Ended");
-
-	obj.normals = normals;
-	obj.positions = positions;
-	
 	var vertexCount = positions.length / 3;
 	var facesCount = vertexCount / 3;
 
@@ -564,16 +258,23 @@ function parseSTL_ASCII(data){
 	avgy /= positions.length;	
 	avgz /= positions.length;	
 
-	var norm = 4.0/Math.sqrt(maxx* maxx + maxy *maxy, maxz *maxz);
+	var norm = scale/Math.sqrt(maxx* maxx + maxy *maxy, maxz *maxz);
 
 	for(var i=0; i<positions.length; i+=3){
 		positions[i]   = (positions[i] - avgx)*norm;
 		positions[i+1]   = (positions[i+1] - avgy)*norm;
 		positions[i+2]   = (positions[i+2] - avgz)*norm;
-
 	}
+	
+	return info;
 
+}
 
+function getDescriptor(info){
+	var positions = info.positions;
+	var normals = info.normals;
+	var vertexCount = positions.length / 3;
+	var facesCount = vertexCount / 3;
 
 	//creating model descriptor
 	var chunkSize = 9000;
@@ -581,11 +282,9 @@ function parseSTL_ASCII(data){
 	var v = vertexCount;
 	var offset = 0;
 	var noff = 0;
+	var modelDescriptor = getEmptyDescriptor();
 	for(var t=0; t<iterations; t++)
 	{
-		if(t > iterations-2){
-			log("puppa");
-		}
 		var localVertices = Math.min(v, chunkSize);
 		modelDescriptor.data.vertexBuffers["vb" + t] = { typedArray: new Float32Array(3 * localVertices) };
 		var arrayBuffer = modelDescriptor.data.vertexBuffers["vb" + t].typedArray;
@@ -644,74 +343,162 @@ function parseSTL_ASCII(data){
 
 		v -= chunkSize;
 	}
-	
-	//------------------------
-
-/*
-	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(3 * vertexCount) };
-	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
-	for(var i = 0; i < vertexCount * 3; i++)
-	{
-		arrayBuffer[i] = parseFloat(positions[i]);
-	}
-
-	modelDescriptor.data.indexBuffers["ib0"] = { typedArray: new Uint16Array(3 * facesCount) };
-	var indexBuffer = modelDescriptor.data.indexBuffers["ib0"].typedArray;
-	for(var i = 0; i < 3* facesCount; i++) {
-		indexBuffer[i] = i;
-	}
-
-
-	modelDescriptor.access.vertexStreams["vertices0"] = { //see glVertexAttribPointer
-	        buffer: "vb0",
-	        size: 3,
-	        type: SpiderGL.Type.FLOAT32,
-	        stride: 12,
-	        offset: 0,
-	        normalized: true 
-	};
-	
-	modelDescriptor.access.primitiveStreams["ps0"] = { //see glDrawElements
-	        buffer: "ib0",
-	        mode: SpiderGL.Type.TRIANGLES,
-	        count: vertexCount,
-	        type: SpiderGL.Type.UINT16,
-	        offset: 0
-	};
-	
-
-	//normals
-	modelDescriptor.data.vertexBuffers["normalVBuffer"] = { typedArray: new Float32Array(vertexCount * 3) };
-	var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"].typedArray;
-
-	for(var i = 0; i < facesCount; i++) {
-        	for (var j = 0; j < 3; j++) {
-         		for (var k = 0; k < 3; k++)
-          			normalBuffer[3*(3*i+j)+k] = normals[3*i+k];
-         	}
-	}
-	
-	modelDescriptor.access.vertexStreams["normals"] = {
-		buffer: "normalVBuffer",
-	        size: 3,
-	        type: SpiderGL.Type.FLOAT32,
-	        stride: 12,
-	        offset: 0,
-	        normalized: true 
-
-	}
-	//
-
-	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"], NORMAL: ["normals"] }, primitiveStreams: { FILL: ["ps0"] }};
-	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
-	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
-*/
-	modelDescriptor.parsingSuccess = obj.parsingSuccess;
+	modelDescriptor.parsingSuccess = info.parsingSuccess;
 
 	return modelDescriptor;	
-
 }
 
+function convertTrianglesToArrays(triangles){
+	var arr = { normals: [], positions: [] };
+
+	for(var i =0; i<triangles.length; i++){
+		arr.normals.push(triangles[i].normal.x);
+		arr.normals.push(triangles[i].normal.y);
+		arr.normals.push(triangles[i].normal.z);
+
+		arr.positions.push(triangles[i].vertex1.x);
+		arr.positions.push(triangles[i].vertex1.x);
+		arr.positions.push(triangles[i].vertex1.x);
+
+		arr.positions.push(triangles[i].vertex2.x);
+		arr.positions.push(triangles[i].vertex2.x);
+		arr.positions.push(triangles[i].vertex2.x);
+
+		arr.positions.push(triangles[i].vertex3.x);
+		arr.positions.push(triangles[i].vertex3.x);
+		arr.positions.push(triangles[i].vertex3.x);
+	}
+
+	return arr;
+}
+
+function parseSTL_Binary(data) { 
+var dataview = new DataView(data);
+	var triangles = [];
+	/*
+	UINT8[80] – Header
+	UINT32 – Number of triangles
+
+	foreach triangle
+	REAL32[3] – Normal vector
+	REAL32[3] – Vertex 1
+	REAL32[3] – Vertex 2
+	REAL32[3] – Vertex 3
+	UINT16 – Attribute byte count
+	end
+	*/
+
+	var headerSize = 80 * 1 ; // 80 x Uint8 
+	var header = new Uint8Array(data.slice(0,headerSize));
+	var numberOfTriangles = dataview.getUint32(headerSize, true);
+	var bodyOffset = headerSize + 4 ; // 1 x Uint32
+	var vectorSize = 4*3; // each triangle is defined by 4 vectors, each vector has 3 x Float32
+	var triangleSize = 4*vectorSize + 2; // we have 4 vectors and a Uint16.
+	function getVector(offset)
+	{
+		var vect = {};
+		vect.x = dataview.getFloat32(offset + 0, true);
+		vect.y = dataview.getFloat32(offset + 4, true);
+		vect.z = dataview.getFloat32(offset + 8, true);
+		return vect;
+	}
+
+	for (var i=0; i<numberOfTriangles; i++)
+	{
+		var triangleOffset = bodyOffset + i*triangleSize;
+		var norm = getVector(triangleOffset);
+		var vertex1 = getVector(triangleOffset + vectorSize);
+		var vertex2 = getVector(triangleOffset + 2*vectorSize);
+		var vertex3 = getVector(triangleOffset + 3*vectorSize);
+		var attribute = dataview.getUint16(triangleOffset + 4*vectorSize);
+		var triangle = {};
+		triangle.normal = norm;
+		triangle.vertex1 = vertex1;
+		triangle.vertex2 = vertex2;
+		triangle.vertex3 = vertex3;
+		triangle.attrib = attribute;
+		triangles.push(triangle);
+	}
+
+	var arr = convertTrianglesToArrays(triangles);
+	return arr;
+}
+
+function parseSTL_ASCII(data){
+	var lines = data.split('\n');
+	for(var j=0; j<lines.length; j++){ 
+		lines[j] = lines[j].trim(); 
+		lines[j] = lines[j].replace(/ +(?= )/g,'');
+	}
+
+	var positions = [];
+	var normals = [];
+	var obj = { parsingSuccess : false };
+	var i=1;
+	while(i < lines.length)
+	{
+		if(lines[i].startsWith("facet normal")){
+			var helper = lines[i].split(" ");
+			normals.push(parseFloat(helper[2]));
+			normals.push(parseFloat(helper[3]));
+			normals.push(parseFloat(helper[4]));
+			i++;
+			if(lines[i] == "outer loop")
+			{
+				var j = 3;
+				var vertexok = true;
+				while(j > 0)
+				{
+					i++;
+					helper = lines[i].split(" ");
+					if(helper[0] != "vertex"){
+						vertexok = false;
+						break;
+					}
+					positions.push(parseFloat(helper[1]));
+					positions.push(parseFloat(helper[2]));
+					positions.push(parseFloat(helper[3]));
+					j--;
+				}
+
+				if(!vertexok){
+					log("parse error, bad vertex on line: " + i);
+					break;
+				}
+
+				i++;
+				if(!lines[i].startsWith("endloop")){
+					log("parse error, bad loop on line: " + i);
+					break;
+				}
+				i++;
+				if(!lines[i].startsWith("endfacet")){
+					log("parse error, bad facet on line: " + i);
+					break;
+				} 
+				i++
+			}else{
+				log("parse error, bad facet on line" + i);
+				break;
+			}
+		}else{
+			if(lines[i].startsWith("endsolid")){
+				obj.parsingSuccess = true;
+				break;
+			}
+
+			log("parse error, bad facet on line " + i);
+			break;
+		}
+	}
+	log("Parsing Ended");
+
+	obj.normals = normals;
+	obj.positions = positions;
+	
+	return obj;	
+
+}
 
 sglHandleCanvasOnLoad("draw-canvas", new CanvasHandler());
 
