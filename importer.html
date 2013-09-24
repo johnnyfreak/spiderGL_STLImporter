@@ -1,17 +1,32 @@
+<!DOCTYPE html >
 <html>
 <head>
-<title>SpiderGL Ply</title>
+<title>SpiderGL STL</title>
 <script type="text/javascript" src="./spidergl.js"></script>
 <script type="text/javascript" src="./importer.js"></script>
 </head>
-<body style="background-color:#aaa;">
+<body>
 	<center>
-		<h2><font color="#880000">SpiderGL STL</font></h2>
-		<br/>
-		<canvas id="draw-canvas" width="800" height="600" style="border:2px solid black;"></canvas>
-		<br/>
+		<h2>SpiderGL STL</h2>
 		<div id="fps-div">FPS : 0</div>
-		<br/>
+		<label>Select Model: </select>
+		<select id="info" onchange="getInfo()">
+			<option value="models/tire_v.stl">Tire</option>
+			<option value="models/ship.stl">Ship</option>
+			<option value="models/knot.stl">Knot</option>
+			<option value="models/porsche.stl">Porche</option>
+			<option value="models/sampleBinary.stl">Sample</option>
+			<option value="models/tete_complete.stl">Head</option>
+			<option value="models/tete_complete2.stl">Head (ASCII)</option>
+			<option value="models/Sample.stl">Sample2</option>
+			<option value="models/simple1.stl">Simple</option>
+			<option value="models/leonardo.stl">Leonardo</option>
+			<option value="models/cubo.stl">Cube piece</option>
+			<option value="models/magnolia.stl">Magnolia</option>
+		</select>
+			<br/>
+		<canvas id="draw-canvas" width="800" height="600" style="border:2px solid black;"></canvas>
+				<br/>
 		<textarea id="log-area" rows="10" cols="80"></textarea>
 		<br/>
 	</center>

@@ -1,3 +1,9 @@
+function getInfo(){
+	var elem = document.getElementById("info");
+	var url = elem.options[elem.selectedIndex].value;
+	canvas.changeMesh(url);
+}
+
 if (typeof String.prototype.startsWith != 'function') {
   // see below for better implementation!
   String.prototype.startsWith = function (str){
@@ -17,6 +23,19 @@ function CanvasHandler() {
 }
 
 CanvasHandler.prototype = {
+	changeMesh : function (url) {
+		var that = this;
+		sglRequestBinary(url, {
+				onSuccess : function (req) {
+				var data = req.buffer;
+				var modelDescriptor = parseSTL(data);
+				that.model = new SglModel(that.ui.gl, modelDescriptor);
+				that.ui.postDrawEvent();
+			}
+		});
+
+	},
+
 	onInitialize : function () {
 		var gl = this.ui.gl;
 
@@ -76,17 +95,7 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		// sglRequestBinary("models/tire_v.stl", {
-		// sglRequestBinary("models/ship.stl", {
-		// sglRequestBinary("models/knot.stl", {
-		// sglRequestBinary("models/porsche.stl", {
-		// sglRequestBinary("models/sampleBinary.stl", {
-		sglRequestBinary("models/tete_complete.stl", {
-		 // sglRequestBinary("models/tete_complete2.stl", {
-		// sglRequestBinary("models/Sample.STL", {
-		// sglRequestBinary("models/sample1.stl", {
-		// sglRequestBinary("models/leonardo.stl", {
-		// sglRequestBinary("models/cubo.stl", {
+		sglRequestBinary("models/tire_v.stl", {
 			onSuccess : function (req) {
 				var data = req.buffer;
 				var modelDescriptor = parseSTL(data);
@@ -119,7 +128,7 @@ CanvasHandler.prototype = {
 		var xform    = this.xform;
 		var renderer = this.renderer;
 
-		gl.clearColor(0.4, 0.4, 0.4, 1.0);
+		gl.clearColor(0.8, 0.8, 0.8, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
 		if (!this.model) return;
@@ -500,5 +509,6 @@ function parseSTL_ASCII(data){
 
 }
 
-sglHandleCanvasOnLoad("draw-canvas", new CanvasHandler());
+var canvas = new CanvasHandler();
+sglHandleCanvasOnLoad("draw-canvas", canvas);
 
