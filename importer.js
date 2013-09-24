@@ -76,13 +76,13 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		//sglRequestBinary("models/tire_v.stl", {
+		// sglRequestBinary("models/tire_v.stl", {
 		// sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
-		// sglRequestBinary("models/tete_complete.stl", {
-		 sglRequestBinary("models/tete_complete2.stl", {
+		sglRequestBinary("models/tete_complete.stl", {
+		 // sglRequestBinary("models/tete_complete2.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
 		// sglRequestBinary("models/leonardo.stl", {
@@ -357,16 +357,16 @@ function convertTrianglesToArrays(triangles){
 		arr.normals.push(triangles[i].normal.z);
 
 		arr.positions.push(triangles[i].vertex1.x);
-		arr.positions.push(triangles[i].vertex1.x);
-		arr.positions.push(triangles[i].vertex1.x);
+		arr.positions.push(triangles[i].vertex1.y);
+		arr.positions.push(triangles[i].vertex1.z);
 
 		arr.positions.push(triangles[i].vertex2.x);
-		arr.positions.push(triangles[i].vertex2.x);
-		arr.positions.push(triangles[i].vertex2.x);
+		arr.positions.push(triangles[i].vertex2.y);
+		arr.positions.push(triangles[i].vertex2.z);
 
 		arr.positions.push(triangles[i].vertex3.x);
-		arr.positions.push(triangles[i].vertex3.x);
-		arr.positions.push(triangles[i].vertex3.x);
+		arr.positions.push(triangles[i].vertex3.y);
+		arr.positions.push(triangles[i].vertex3.z);
 	}
 
 	return arr;
@@ -419,8 +419,8 @@ var dataview = new DataView(data);
 		triangle.attrib = attribute;
 		triangles.push(triangle);
 	}
-
 	var arr = convertTrianglesToArrays(triangles);
+	arr.parsingSuccess = true;
 	return arr;
 }
 
