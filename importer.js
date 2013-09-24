@@ -292,9 +292,9 @@ function parseSTL_Binary(data) {
 		return vect;
 	}
 
+	var triangleOffset = bodyOffset;
 	for (var i=0; i<numberOfTriangles; i++)
 	{
-		var triangleOffset = bodyOffset + i*triangleSize;
 		var norm = getVector(triangleOffset);
 		var vertex1 = getVector(triangleOffset + vectorSize);
 		var vertex2 = getVector(triangleOffset + 2*vectorSize);
@@ -307,6 +307,7 @@ function parseSTL_Binary(data) {
 		triangle.vertex3 = vertex3;
 		triangle.attrib = attribute;
 		triangles.push(triangle);
+		triangleOffset += triangleSize + attribute;
 	}
 	var modelDescriptor = {
                      version: "0.0.1.0 EXP",
