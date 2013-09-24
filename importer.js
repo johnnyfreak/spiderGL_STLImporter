@@ -76,11 +76,11 @@ CanvasHandler.prototype = {
 
 		this.model = null;
 		var that = this;
-		 // sglRequestBinary("models/tire_v.stl", {
+		 sglRequestBinary("models/tire_v.stl", {
 		// sglRequestBinary("models/ship.stl", {
 		// sglRequestBinary("models/knot.stl", {
 		// sglRequestBinary("models/porsche.stl", {
-		sglRequestBinary("models/tete_complete.stl", {
+		// sglRequestBinary("models/tete_complete2.stl", {
 		// sglRequestBinary("models/sampleBinary.stl", {
 		// sglRequestBinary("models/Sample.STL", {
 		// sglRequestBinary("models/sample1.stl", {
@@ -107,7 +107,7 @@ CanvasHandler.prototype = {
 	},
 
 	onAnimate : function (dt) {
-		this.angle += 90.0 * dt;
+		this.angle += 30.0 * dt;
 		this.ui.postDrawEvent();
 	},
 
@@ -542,6 +542,111 @@ function parseSTL_ASCII(data){
 	var vertexCount = positions.length / 3;
 	var facesCount = vertexCount / 3;
 
+	var avgx = 0.0;
+	var avgy = 0.0;
+	var avgz = 0.0;
+	var maxx = 0.0;
+	var maxy = 0.0;
+	var maxz = 0.0;
+
+	for(var i=0; i<positions.length;i+=3){
+		avgx += positions[i];
+		maxx = Math.max(maxx, positions[i]);
+		avgy += positions[i+1];
+		maxy = Math.max(maxy, positions[i]);
+		avgz += positions[i+2];
+		maxz = Math.max(maxz, positions[i]);
+
+	}
+
+	avgx /= positions.length;	
+	avgy /= positions.length;	
+	avgz /= positions.length;	
+
+	var norm = 4.0/Math.sqrt(maxx* maxx + maxy *maxy, maxz *maxz);
+
+	for(var i=0; i<positions.length; i+=3){
+		positions[i]   = (positions[i] - avgx)*norm;
+		positions[i+1]   = (positions[i+1] - avgy)*norm;
+		positions[i+2]   = (positions[i+2] - avgz)*norm;
+
+	}
+
+
+
+	//creating model descriptor
+	var chunkSize = 9000;
+	var iterations = parseInt(vertexCount / chunkSize)+1;
+	var v = vertexCount;
+	var offset = 0;
+	var noff = 0;
+	for(var t=0; t<iterations; t++)
+	{
+		if(t > iterations-2){
+			log("puppa");
+		}
+		var localVertices = Math.min(v, chunkSize);
+		modelDescriptor.data.vertexBuffers["vb" + t] = { typedArray: new Float32Array(3 * localVertices) };
+		var arrayBuffer = modelDescriptor.data.vertexBuffers["vb" + t].typedArray;
+		for(var i = 0; i < localVertices * 3; i++)
+		{
+			arrayBuffer[i] = parseFloat(positions[offset + i]);
+		}
+		offset += localVertices * 3;
+		var localFaceCount = localVertices / 3;
+
+		modelDescriptor.data.indexBuffers["ib"+t] = { typedArray: new Uint16Array(3 * localFaceCount) };
+		var indexBuffer = modelDescriptor.data.indexBuffers["ib"+t].typedArray;
+		for(var i = 0; i < 3* localFaceCount; i++) {
+			indexBuffer[i] = i;
+		}
+
+		modelDescriptor.access.vertexStreams["vertices"+t] = { //see glVertexAttribPointer
+	        buffer: "vb"+t,
+	        size: 3,
+	        type: SpiderGL.Type.FLOAT32,
+	        stride: 12,
+	        offset: 0,
+	        normalized: true 
+		};
+	
+		modelDescriptor.access.primitiveStreams["ps"+t] = { //see glDrawElements
+	        buffer: "ib"+t,
+	        mode: SpiderGL.Type.TRIANGLES,
+	        count: localVertices,
+	        type: SpiderGL.Type.UINT16,
+	        offset: 0
+		};
+	
+		modelDescriptor.data.vertexBuffers["normalVBuffer"+t] = { typedArray: new Float32Array(localVertices * 3) };
+		var normalBuffer = modelDescriptor.data.vertexBuffers["normalVBuffer"+t].typedArray;
+
+		for(var x = 0; x < localFaceCount; x++) {
+        		for (var y = 0; y < 3; y++) {
+         			for (var k = 0; k < 3; k++)
+          				normalBuffer[3*(3*x+y)+k] = normals[noff + 3*x+k];
+         		}
+		}
+		noff += localVertices;
+		modelDescriptor.access.vertexStreams["normals"+t] = {
+			buffer: "normalVBuffer"+t,
+	        	size: 3,
+	  	      	type: SpiderGL.Type.FLOAT32,
+	 	       	stride: 12,
+	 	       	offset: 0,
+	 	       	normalized: true 
+		}
+
+		modelDescriptor.semantic.bindings["bd"+t] = { vertexStreams: { POSITION: ["vertices"+t], NORMAL: ["normals"+t] }, primitiveStreams: { FILL: ["ps"+t] }};
+		modelDescriptor.semantic.chunks["ch"+t] = { techniques: { common: { binding: "bd"+t } } };
+		modelDescriptor.logic.parts["pt"+t] = { chunks: ["ch"+t] };
+
+		v -= chunkSize;
+	}
+	
+	//------------------------
+
+/*
 	modelDescriptor.data.vertexBuffers["vb0"] = { typedArray: new Float32Array(3 * vertexCount) };
 	var arrayBuffer = modelDescriptor.data.vertexBuffers["vb0"].typedArray;
 	for(var i = 0; i < vertexCount * 3; i++)
@@ -599,7 +704,7 @@ function parseSTL_ASCII(data){
 	modelDescriptor.semantic.bindings["bd0"] = { vertexStreams: { POSITION: ["vertices0"], NORMAL: ["normals"] }, primitiveStreams: { FILL: ["ps0"] }};
 	modelDescriptor.semantic.chunks["ch0"] = { techniques: { common: { binding: "bd0" } } };
 	modelDescriptor.logic.parts["pt0"] = { chunks: ["ch0"] };
-
+*/
 	modelDescriptor.parsingSuccess = obj.parsingSuccess;
 
 	return modelDescriptor;	
