@@ -4,6 +4,11 @@ function getInfo(){
 	canvas.changeMesh(url);
 }
 
+function loadMesh(){
+	var url = document.getElementById("customText").value;
+	canvas.changeMesh(url);
+}
+
 if (typeof String.prototype.startsWith != 'function') {
   // see below for better implementation!
   String.prototype.startsWith = function (str){
